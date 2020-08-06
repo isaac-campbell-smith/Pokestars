@@ -9,7 +9,7 @@ CREATE TABLE natures (id INTEGER, name VARCHAR);
 
 CREATE TABLE battles (id INTEGER, month VARCHAR, count INTEGER, usage REAL);
 \copy battles FROM '/home/ubuntu/pokemon_data/battle_counts.csv' DELIMITER ',' CSV HEADER;
-****************
+
 CREATE TABLE battle_natures (id INTEGER, nature_id INTEGER, count REAL, month VARCHAR);
 \copy battle_natures FROM '/home/ubuntu/pokemon_data/nature_counts.csv' DELIMITER ',' CSV HEADER;
 
@@ -24,6 +24,3 @@ CREATE TABLE counters (id INTEGER, counter_id INTEGER, num_battles REAL, check_p
 
 CREATE TABLE users (month VARCHAR, num_battles INTEGER);
 \copy users FROM '/home/ubuntu/pokemon_data/monthly_popularity.csv' DELIMITER ',' CSV HEADER;
-
-SELECT n.name, SUM(count) FROM battle_abilities b JOIN abilities n
-ON b.ability_id=n.id GROUP BY n.name ORDER BY COUNT(*) DESC LIMIT 15;
