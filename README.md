@@ -1,5 +1,7 @@
 # Pokestars
 
+*NOTE* Please out the README to render visualization properly here: https://isaac-campbell-smith.github.io/Pokestars/
+
 <p align="justify">
 I've been into competetive Pokemon battling since the release of Diamond and Pearl in 2007. The mechanics that Nintendo changed that year vastly improved on what had already been a supremely addicting game, albeit a bit too dependent on luck and brute-force, and transformed it into an intellectually engaging strategy contest on par with chess. Pokemon Showdown has been central to my experience as it's open-source and free-to-play software allows battlers to simply create teams by defining all their own Pokemon's stats rather than having to spend hours mercilessly grinding in-game to make a perfect spread. They also provide a lot of the monthly battling data through <b>www.smogon.com</b>, which is perfect for interesting statistical analysis.  
 <p align="justify">
