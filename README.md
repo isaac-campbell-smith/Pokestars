@@ -1,6 +1,6 @@
 # Pokestars
 
-***NOTE*** : Please check out this link to properly render embedded Tableau visuals: https://isaac-campbell-smith.github.io/Pokestars/
+***NOTE*** : Please check out this link if embedded Tableau visual does not work on your device: https://public.tableau.com/profile/isaac.campbell.smith#!/vizhome/PokemonShowdown/Dashboard1
 
 <p align="justify">
 I've been into competetive Pokemon battling since the release of Diamond and Pearl in 2007. The mechanics that Nintendo changed that year vastly improved on what had already been a supremely addicting game, albeit a bit too dependent on luck and brute-force, and transformed it into an intellectually engaging strategy contest on par with chess. Pokemon Showdown has been central to my experience as it's open-source and free-to-play software allows battlers to simply create teams by defining all their own Pokemon's stats rather than having to spend hours mercilessly grinding in-game to make a perfect spread. They also provide a lot of the monthly battling data through <b>www.smogon.com</b>, which is perfect for interesting statistical analysis.  
@@ -13,7 +13,7 @@ My goal with this project is not only to build a richer understanding of the com
 
 ## Initial Findings
 Even though more Pokemon have become available over time(Generation 7 in June 2016 and Generation 8 in January 2020), it seems like Showdown users are gravitating towards less variety.
-<br>
+<br><br>
 <img src="https://raw.githubusercontent.com/isaac-campbell-smith/Pokestars/master/figures/TotalPokemonUsage.png">
 <br><br>
 <img src="https://raw.githubusercontent.com/isaac-campbell-smith/Pokestars/master/figures/Top3usage.png">
