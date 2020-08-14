@@ -12,10 +12,12 @@ My goal with this project is not only to build a richer understanding of the com
 <br>
 
 ## Initial Findings
-Even though more Pokemon have become availebl
-
-
-
+Even though more Pokemon have become available over time(Generation 7 in June 2016 and Generation 8 in January 2020), it seems like Showdown users are gravitating towards less variety.
+<br>
+<img src="https://raw.githubusercontent.com/isaac-campbell-smith/Pokestars/master/figures/TotalPokemonUsage.png">
+<br><br>
+<img src="https://raw.githubusercontent.com/isaac-campbell-smith/Pokestars/master/figures/Top3usage.png">
+<br><br>
 If you're interested in checking out the database, please shoot me a message at icampsmith@gmail.com 
 
 Here's how it's set up: 
