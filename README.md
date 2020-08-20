@@ -45,7 +45,7 @@ Here's how it's set up:
 | counters      |     |
 | :------------- | :----------: |
 | id     | INT - <i> unique id key |
-| mate_id    | INT - <i> unique id key (same as from pokemon primary table) |
+| counter_id    | INT - <i> unique id key (same as from pokemon primary table) |
 | num_battles    | INT - <i> matchups where id and mate_id faced off |
 | check_pct    | REAL - <i> percent of matchups where mate_id K.O.-d id or forced a switch |
 | month    | DATE |
