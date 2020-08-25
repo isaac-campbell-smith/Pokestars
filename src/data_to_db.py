@@ -1,15 +1,9 @@
-import boto3
+"""
+This is python script streams s3 bucket data (csv's) into the AWS RDS postgres database
+"""
 import psycopg2 
 import pandas as pd
-import io
-
-s3 = boto3.client('s3')
-
-response = s3.list_objects_v2(Bucket='c-smith1')
-
-#GET ONLY THE FILE NAMES FROM THE S3 BUCKET THAT ARE RELEVANT
-file_list = [obj['Key'].replace('pokemon/','') for obj in response['Contents']  
-                       if 'pokemon/' in obj['Key'] and obj['Key'][-4:] == '.csv']
+from io import StringIO
 
 #DICTIONARY TO MATCH FILE NAMES TO DESIRED TABLE NAME & SCHEMA
     #keys correspond to file_list names
@@ -35,34 +29,32 @@ table_dict = {
                           '(month VARCHAR, num_battles INTEGER)']
 }
 
-#CONNECT TO DB
-conn = psycopg2.connect('dbname=pokemon user=postgres password=password host=localhost')
+#CONNECT TO DB (MODIFY STRING PARAMETER AS NEEDED)
+conn = psycopg2.connect('dbname= user= password= host=')
 cur = conn.cursor()
 
-#ITERATE THROUGH FILE LAST
-    #1. CONCAT file name & corresponding table values
-    #2. EXECUTE & SAVE
+for key, item in table_dict.items():
 
-#OUTPUT: tables inserted
-for f in file_list:
+    name, schema = item
 
-    key = f[:-4].replace('pokemon/','')
-    name, schema = table_dict[key]
+    create_query = f'CREATE TABLE {name} {schema}; COMMIT;' 
+    cur.execute(query)
 
-    create = f'CREATE TABLE {name} {schema}; COMMIT;' 
-    cur.execute(create)
+    
 
-    temp = io.StringIO()
-    data_endpoint = f'https://c-smith1.s3-us-west-1.amazonaws.com/pokemon/{f}'
+    #ANOTHER PARAMETER UNIQUE TO THIS DB
+    data_endpoint = f'https://BUCKETNAME.s3-REGION.amazonaws.com/pokemon/{key}.csv'
     df = pd.read_csv(data_endpoint)
     columns = df.columns
-    df.to_csv(temp, index=False, header=False)
 
-    temp.seek(0)
-    cur.copy_from(temp, name, columns=columns, sep=',')
+    f = StringIO() #temporary housing object for sql compatibility
+    df.to_csv(f, index=False, header=False)
+
+    f.seek(0) #initialize the IO cursor
+    cur.copy_from(f, name, columns=columns, sep=',')
     conn.commit()
 
-    print (f'Table: {name} successfully created')
+    print (f'{name} successfully created')
 
 cur.close()
 conn.close()
