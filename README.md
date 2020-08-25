@@ -88,7 +88,7 @@ Since introducing this project to a number of colleagues, I was a bit surprised 
 
 OK, so maybe this is an obtuse start to a step-by-step guide, but I feel it's important to note how I went about doing setting up a SQL database and that there are multiple ways to accomplish Step 1. I chose to clean, assign unique IDs across related DataFrames using the Python Pandas library. Check out the src folder in this repo for how I did it. The code I wrote is pretty distinct to the JSON files I gathered from smogon.com but will be modularized further as I do more of this in the future. The same effect can be accomplished more elegantly using only SQL but I didn't want to fuss with it here as I've built SQL databases before and it can be a pain to get right. 
 
-TL;DR -- Store database 'tables' as seperate csv files (one for each table in your database). 
+TL;DR -- Store database 'tables' as separate csv files (one for each table in your database). 
 
 ### Step 2: Transfer Data to S3 Bucket
 
@@ -115,28 +115,34 @@ This step is fairly similar to the above but through the EC2 section of AWS. Whe
 ### Step 5: Populate RDS From EC2
 
 Once you're in your EC2 terminal, run the following commands.<br>
-<code>
-<li> sudo apt update
+
+
+<li> <code>sudo apt update
 <li> sudo apt upgrade
 <li> wget -S -T 10 -t 5 https://repo.continuum.io/archive/Anaconda3-5.0.1-Linux-x86_64.sh -O $HOME/anaconda.sh
-<li> bash anaconda.sh </code> (<i> answer yes to all prompts </i>)
+<li> bash anaconda.sh 
+</code> (<i> answer yes to all prompts </i>)
 <code>
 <li> source ~/.bashrc
 <li> pip install awscli 
-</code><br><br>
-
-Next, access your S3 bucket. I believe there are multiple ways to do this but what I did was:
 <code>
-<li> aws s3 sync s3://< BUCKETNAME >/ /home/ubuntu/
+<li> pip install psycopg2</code> (<i> not necessary with aws s3 sync method </i>)
 </code><br><br>
 
-Penultimately, install and verify that postgres is enabled and accepting connections at port 5432
+Install and verify that postgres is enabled and accepting connections at port 5432
 <code>
 <li> sudo apt install postgresql
 <li> sudo systemcl is-active postgresql
 <li> sudo systemctl is-enabled postgresql
 <li> sudo systemctl status postgresql
 </code><br><br>
+
+Next, access your S3 bucket. There are multiple ways to do this but what I did initially was:
+<code>
+<li> aws s3 sync s3://< BUCKETNAME >/ /home/ubuntu/
+</code><br><br>
+
+My files aren't too large so I didn't really care much about storing them locally on my ec2 instance, which is what the sync method does. I've since written a script which incorporates psycopg2 to stream data from the s3 bucket so you don't have to store it locally. It requires about twice as much code but is ultimately a much safer route cost-wise if you have super big tables (no different in terms of time as far as I can tell). If you don't have a whole lot of data you're working with, read on. Otherwise checkout the data_to_db.py file in the src folder (which is technically the last step if you go that route).
 
 Finally, connect to the database with the appropriate modifications to this code:<br>
 <code>
@@ -148,7 +154,7 @@ psql -U postgres \
    --dbname= < DBNAME >
 </code>
 <br><br>
-& dump the csvs into tables as desired. Check out the make_db.sql file in the src folder for that syntax. I personally couldn't be bothered with actually importing that file into my instance and running it as a command. Once you're in the database from the psql shell you can just copy-paste everything in. Shout out to Matthew Layne for a very clear tutorial regarding this part:
+AND dump the csvs into tables as desired. Check out the make_db.sql file in the src folder for that syntax. I personally couldn't be bothered with actually importing that file into my instance and running it as a command. Once you're in the database from the psql shell you can just copy-paste everything in. Shout out to Matthew Layne for a very clear tutorial regarding this part:
 https://dataschool.com/learn-sql/importing-data-from-csv-in-postgresql/
 
 ### Step 6: You Did It
