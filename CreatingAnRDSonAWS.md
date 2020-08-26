@@ -1,34 +1,34 @@
 ## How to Set Up an AWS Relational Database (RDS)
 
-Since introducing this project to a number of colleagues, I was a bit surprised that the most interesting component to folks is actually getting this database up an running. The AWS platform can be a bit of a pain to work with, so I get it, and I'm here for you! These are the essential steps I took to set up the database.
+Since introducing this project to a number of colleagues, I was a bit surprised that the most interesting component to folks is getting this database up and running. The AWS platform can be a a pain to work with, so I get it, and I'm here for you! These are the essential steps I took to set up an RDS.
 
 ### Step 1: Get Data
 
-OK, so maybe this is an obtuse start to a step-by-step guide, but I feel it's important to note how I went about doing setting up a SQL database and that there are multiple ways to accomplish Step 1. I chose to unpack the smogon.com JSON files & assign unique IDs across related DataFrames using the Python Pandas library. Check out the src folder in this repo for how that was accomplished. The code I wrote is pretty distinct to this project but will be modularized further as I do more of this in the future.
+OK, maybe this is an obtuse start to a step-by-step guide, but I feel it's important to note how I went about setting up a SQL database and that there are multiple ways to accomplish Step 1. I unpacked the smogon.com JSON files & assigned unique IDs across "related" DataFrames using Python's Pandas library. Check out the src folder in this repo for how that was accomplished. That code is pretty distinct to this project but will be modularized further if I do more of this in the future.
 
 TL;DR -- Store database 'tables' as separate csv files (one for each table in your database) 
 
 ### Step 2: Transfer Data to S3 Bucket
 
-This should be the easieset step. Create a new S3 Bucket to store your csv's. Check out this link if you need further help:
+This should be the easiest step. Create a new S3 Bucket and store your csv's. I gave mine public read access. Check out this link if you need further help:
 https://docs.aws.amazon.com/quickstarts/latest/s3backup/step-1-create-bucket.html
 
 ### Step 3: Create an RDS Instance
 
-Start by navigating to the RDS section of your AWS dashboard and create a new RDS. The GUI guides you toward a lot of default settings that you don't need to play with much - I did this on the free tier single zone option. Just make sure you write down your database name, username and password for later. 
+Navigate to the RDS section of your AWS dashboard and create a new RDS. The GUI directs you toward a lot of default settings that you don't need to tinker with much - I did this on the free tier single zone option. Just make sure you write down your database name, username and password for later. 
 
-The important part here is how you configure the security group (you'll probably need to create a new one). You'd think that telling the inbound rules to accept all incoming traffic will do the trick; for me it didn't. Instead I had to explicitly use these settings: <br><br>
+The important part here is how you configure the security group (you'll probably need to create a new one). Give the security group these inbound settings: <br><br>
 <img src='https://raw.githubusercontent.com/isaac-campbell-smith/Pokestars/master/figures/RDS%20Security%20Settings.png' width='500'><br>
 
-The HTTP and SSH rules allow you to interact with the EC2 instance you'll set up in the next step. The PostgreSQL rule allows you to populate the database from Pgserv. Port range 5432 is specified because that's the standard port associated with Postgres. You'll need to tailor that rule to whatever SQL server you use. Security outbound rules can be set to 'All Traffic'. 
+The HTTP and SSH rules allow you to interact with the EC2 instance you'll set up in the next step. The PostgreSQL rule allows you to populate the database from the Postgres app. Port range 5432 is specified because that's the standard port associated with Postgres. You'll need to tailor that rule to whatever SQL server you use. Security outbound rules can be set to 'All Traffic'. 
 
-Once you click create, AWS will generate an Endpoint for the RDS. That address is how you'll connect to the database from your SQL software, so copy it down for later (it should look something like dbname.lqujik0xtcc6n.us-west-2.rds.amazonaws.com). Finally, take note of the security group name that is generated for your RDS. You'll need that for the EC2 instance you'll set up next. 
+Once you click create, AWS will generate an Endpoint for the RDS. That address is how you'll connect to the database from your SQL software, so copy it down for later (it should look something like dbname.lqujik0xtcc6n.us-west-2.rds.amazonaws.com). Finally, take note of the security group name that is generated for your RDS. You need that for the EC2 instance you'll set up next. 
 
-After this step you should have saved 5 items: a database name, username, password, endpoint address, and RDS security group name. 
+After this step you should have saved 5 items: database name, username, password, endpoint address, and security group name. 
 
 ### Step 4: Create an EC2 Instance
 
-This step is fairly similar to the above but through the EC2 section of AWS. I chose `t2.micro` for the instance type and Ubuntu 16.04 as the operating system. You should give it an IAM role that allows it full access to S3. Also, when assigning your security group make sure it's the same group that you created above.
+This step is fairly similar to the above but through the EC2 section of AWS. I chose `t2.micro` for the instance type and Ubuntu 16.04 as the operating system. You should give it an IAM role that allows it full access to S3 (which you'll need to create if you don't already have one). Also, when assigning your security group make sure it's the same group that you created above.
 
 ### Step 5: Populate RDS From EC2
 
