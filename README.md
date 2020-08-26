@@ -20,7 +20,9 @@ Even though more Pokemon have become available over time(Generation 7 in June 20
 <br><br>
 If you're interested in checking out the database, please shoot me a message at icampsmith@gmail.com 
 
-Here's how it's set up: 
+I've also included all necessary scripts in the src to create your own version of this database along with a detailed walkthrough in the CreatingAnRDSonAWS.md. I highly recommend checking that out.
+
+Here's how the database is structured: 
 <br><br>
 | pokemon      |     |
 | :------------- | :----------: |
