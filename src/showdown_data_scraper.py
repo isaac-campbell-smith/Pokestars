@@ -13,7 +13,7 @@ def make_link(head, tail, i):
     OUTPUT:
         lst -> url & filepath (fp)
     """       
-    folder = '../data/raw/chaos/'
+    folder = '~/Pokestars/data/raw/chaos/'
     url = head + str(i).zfill(2) + tail 
     fp = folder + url.split('/chaos')[0][-7:].replace('-', '_') + '.json'
     

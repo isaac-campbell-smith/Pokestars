@@ -209,7 +209,8 @@ class Usage(PokeData):
         
         self.nature_df = pd.concat([self.nature_df, 
                                      pd.DataFrame(new_nature)], 
-                                     sort=False, ignore_index=True)\
+                                     sort=False, ignore_index=True)
+
         self.items_df = pd.concat([self.items_df,
                                    pd.DataFrame(new_item)],
                                    sort=False, ignore_index=True)
@@ -223,7 +224,7 @@ if __name__ == '__main__':
     popularity = Popularity()
     usage = Usage()
     
-    read_folder = '../data/raw/chaos/'
+    read_folder = '~/Pokestars/data/raw/chaos/'
     
     for fp in sorted(os.listdir(read_folder)):
         try: #this try, except just helps to ignore any '.' sys files 
@@ -240,7 +241,7 @@ if __name__ == '__main__':
         except:
             pass
         
-    write_folder = '../data/clean/'
+    write_folder = '~/Pokestars/data/clean/'
     
     pokemon_ref = pd.DataFrame(usage.ids.items(), columns=['name', 'id'])[['id', 'name']]
     nature_ref = pd.DataFrame(usage.natures.items(), columns=['name', 'id'])[['id', 'name']]

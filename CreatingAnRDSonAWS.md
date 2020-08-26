@@ -62,11 +62,11 @@ If you'd rather just copy the csv's to your instance, run this line of code:
 
 Then, connect to the database with appropriate modifications to this code block:<br><br>
 <code>
-psql -U postgres \ <br>
-   --host=< ENDPOINT ADDRESS > \ <br>
-   --port=5432 \ <br>
-   --username=< USERNAME > \ <br>
-   --password=< PASSWORD > \ <br>
+psql -U postgres <br>
+   --host=< ENDPOINT ADDRESS > <br>
+   --port=5432 <br>
+   --username=< USERNAME > <br>
+   --password=< PASSWORD > <br>
    --dbname= < DBNAME >
 </code>
 <br><br>

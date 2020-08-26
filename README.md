@@ -28,6 +28,8 @@ Here's how the database is structured:
 | :------------- | :----------: |
 | id     | INT - <i> unique id key|
 | name    | VARCHAR - <i> i.e. Pikachu|
+| type_1   | VARCHAR - <i> i.e. Electric|
+| type_2   | VARCHAR - <i> i.e. None|
 
 | battles      |     |
 | :------------- | :----------: |
@@ -79,5 +81,17 @@ Here's how the database is structured:
 | id     | INT - <i> unique pokemon id key |
 | ability_id    | INT - <i> unique ability id key |
 | count    | INT - <i> number of teams with id having ability_id |
+| month    | DATE |
+
+| items      |     |
+| :------------- | :----------: |
+| id     | INT - <i> unique item id key |
+| name   | VARCHAR - <i> i.e. Choice Scarf |
+
+| battle_items      |     |
+| :------------- | :----------: |
+| id     | INT - <i> unique pokemon id key |
+| item_id    | INT - <i> unique item id key |
+| count    | INT - <i> number of teams with id having item_id |
 | month    | DATE |
 <br>
