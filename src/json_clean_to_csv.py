@@ -13,9 +13,11 @@ class PokeData():
     4. Pokemon Teammates 
     5. Pokemon Counters 
     6. Pokemon Natures 
-    7. Pokemon ID reference
-    8. Nature ID reference
-    9. Ability ID reference
+    7. Pokemon Items
+    8. Pokemon ID reference
+    9. Nature ID reference
+    10. Ability ID reference
+    11. Item ID reference
 
     Parent class that gives some high-level functionality to parse 2 different dictionary structures
     Popularity child targets one sublevel for one t
@@ -59,6 +61,7 @@ class Usage(PokeData):
         self.ids = dict()
         self.abilities = dict()
         self.natures = dict()
+        self.item = dict()
         
         self.next_id = 0 #tracks the next Pokemon id to store
         self.next_ab = 0            #next Ability id to store
@@ -68,8 +71,9 @@ class Usage(PokeData):
         self.counter_df = pd.DataFrame(columns=['id', 'counter_id', 'num_battles', 'check_pct', 'month'])
         self.ability_df = pd.DataFrame(columns=['id', 'ability_id', 'count', 'month'])
         self.nature_df = pd.DataFrame(columns=['id', 'nature_id', 'count', 'month'])
+        self.items_df = pd.DataFrame(columns=['id', 'item_id', 'count', 'month'])
         
-    def _update_ids(self, idname):
+    def _update_ids(self, name):
         """
         Check if the name is in a dictionary & return it's value. 
         Otherwise update the dictionary & current count accordingly.
@@ -108,11 +112,25 @@ class Usage(PokeData):
             self.natures[name] = self.next_nat
             self.next_nat += 1
             
+    def _update_items(self, name):
+        """
+        Check if the name is in a dictionary & return it's value. 
+        Otherwise update the dictionary & current count accordingly.
+        INPUT:
+            dic : dictionary
+            x   : int
+            name: string
+        """         
+        if name not in self.item:
+            self.item[name] = self.next_ite
+            self.next_ite += 1     
+            
     def _add_new_data(self, dic=dict, month=str, targets=dict):
         out = defaultdict(list) #new dictionary for usage status
         
         new_ability = defaultdict(list) #ability stats
         new_nature = defaultdict(list) #
+        new_item = defaultdict(list)
         new_counters = defaultdict(list)
         new_teammates = defaultdict(list)
         
@@ -135,6 +153,13 @@ class Usage(PokeData):
                 new_ability['ability_id'].append(self.abilities[ability])
                 new_ability['count'].append(count)
                 new_ability['month'].append(month)
+                
+            for item, count in sub['Items'].items():
+                self._update_items(item)
+                new_item['id'].append(id_)
+                new_item['item_id'].append(self.item[item])
+                new_item['count'].append(count)
+                new_item['month'].append(month)
             
             sub_nature_vals = defaultdict(int)
             
@@ -184,7 +209,11 @@ class Usage(PokeData):
         
         self.nature_df = pd.concat([self.nature_df, 
                                      pd.DataFrame(new_nature)], 
-                                     sort=False, ignore_index=True)
+                                     sort=False, ignore_index=True)\
+        self.items_df = pd.concat([self.items_df,
+                                   pd.DataFrame(new_item)],
+                                   sort=False, ignore_index=True)
+        
         out = pd.DataFrame(out)
 
         return out
@@ -200,9 +229,9 @@ if __name__ == '__main__':
         try: #this try, except just helps to ignore any '.' sys files 
             with open(read_folder+fp, 'r') as f:
                 d = json.load(f)
+            month = fp[-7:-5] + '-' + fp[:4]
             print(f'\n>> Parsing Pokemon data from {month}')    
             dic = d['data']
-            month = fp[-7:-5] + '-' + fp[:4]
             num_battles = d['info']['number of battles']
 
             popularity.update_df(month=month, value=num_battles)
@@ -216,13 +245,16 @@ if __name__ == '__main__':
     pokemon_ref = pd.DataFrame(usage.ids.items(), columns=['name', 'id'])[['id', 'name']]
     nature_ref = pd.DataFrame(usage.natures.items(), columns=['name', 'id'])[['id', 'name']]
     ability_ref = pd.DataFrame(usage.abilities.items(), columns=['name', 'id'])[['id', 'name']]
+    item_ref = pd.DataFrame(usage.item.items(), columns=['name', 'id'])[['id', 'name']]
     
     pokemon_ref.to_csv(write_folder+'pokemon_reference.csv', header=True, index=False)
     nature_ref.to_csv(write_folder+'nature_reference.csv', header=True, index=False)
     ability_ref.to_csv(write_folder+'ability_reference.csv', header=True, index=False)
+    item_ref.to_csv(write_folder+'item_reference.csv', header=True, index=False)
     popularity.df.to_csv(write_folder+'monthly_popularity.csv', header=True, index=False)
     usage.df.to_csv(write_folder+'battle_counts.csv', header=True, index=False)
     usage.nature_df.to_csv(write_folder+'nature_counts.csv', header=True, index=False)
     usage.ability_df.to_csv(write_folder+'ability_counts.csv', header=True, index=False)
+    usage.items_df.to_csv(write_folder+'item_counts.csv', header=True, index=False)
     usage.teammate_df.to_csv(write_folder+'teammate_stats.csv', header=True, index=False)
     usage.counter_df.to_csv(write_folder+'counter_stats.csv', header=True, index=False)
