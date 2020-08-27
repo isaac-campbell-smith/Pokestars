@@ -8,4 +8,8 @@ def pretty_query(cur, query, conn):
         #the name method contains SQL column labels
     headers = [head.name for head in cur.description]
     out = pd.DataFrame(data=data, columns=headers)
+    
+    if 'id' in headers:
+        out.set_index('id', inplace=True)
+        
     return out

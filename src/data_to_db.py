@@ -6,21 +6,25 @@ import pandas as pd
 from io import StringIO
 
 #DICTIONARY TO MATCH FILE NAMES TO DESIRED TABLE NAME & SCHEMA
-    #keys correspond to file_list names
-    #values: list, [0] index is table name, [1] is schema
+    #keys correspond to AWS S3 bucket file names
+    #values: list, index [0] = sql table name, [1] = schema
 table_dict = {
-    'pokemon_reference':['pokemon', 
+    'pokemon_withtypes_reference':['pokemon', 
                          '(id INTEGER, name VARCHAR)'],
     'ability_reference':['abilities', 
                          '(id INTEGER, name VARCHAR)'],
     'nature_reference':['natures', 
                         '(id INTEGER, name VARCHAR)'],
+    'item_reference':['items',
+                      '(id INTEGER, name VARCHAR)'],
     'battle_counts':['battles', 
                      '(id INTEGER, month VARCHAR, count INTEGER, usage REAL)'],
     'nature_counts':['battle_natures', 
                      '(id INTEGER, nature_id INTEGER, count REAL, month VARCHAR)'],
     'ability_counts':['battle_abilities',
                       '(id INTEGER, ability_id INTEGER, count REAL, month VARCHAR)'],
+    'item_counts':['battle_items',
+                   '(id INTEGER, item_id INTEGER, count REAL, month VARCHAR)'],
     'teammate_stats':['teammates', 
                       '(id INTEGER, mate_id INTEGER, x REAL, month VARCHAR)'],
     'counter_stats':['counters', 
@@ -30,8 +34,10 @@ table_dict = {
 }
 
 #CONNECT TO DB (MODIFY STRING PARAMETER AS NEEDED)
-conn = psycopg2.connect('dbname= user= password= host=')
+conn = psycopg2.connect('dbname=postgres user=postgres password=password host=5432')
 cur = conn.cursor()
+
+cur.execute('CREATE DATABASE pokestars; COMMIT;') #COMMENT THIS LINE OUT IF ON AWS
 
 for key, item in table_dict.items():
 
@@ -39,8 +45,6 @@ for key, item in table_dict.items():
 
     create_query = f'CREATE TABLE {name} {schema}; COMMIT;' 
     cur.execute(query)
-
-    
 
     #ANOTHER PARAMETER UNIQUE TO THIS DB
     data_endpoint = f'https://BUCKETNAME.s3-REGION.amazonaws.com/pokemon/{key}.csv'
