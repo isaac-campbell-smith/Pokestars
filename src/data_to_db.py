@@ -2,6 +2,8 @@
 This is python script streams s3 bucket data (csv's) into the AWS RDS postgres database
 """
 import psycopg2 
+from psycopg2 import sql
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 import pandas as pd
 from io import StringIO
 
@@ -10,7 +12,7 @@ from io import StringIO
     #values: list, index [0] = sql table name, [1] = schema
 table_dict = {
     'pokemon_withtypes_reference':['pokemon', 
-                         '(id INTEGER, name VARCHAR)'],
+                         '(id INTEGER, name VARCHAR, type_1 VARCHAR, type_2 VARCHAR)'],
     'ability_reference':['abilities', 
                          '(id INTEGER, name VARCHAR)'],
     'nature_reference':['natures', 
@@ -34,20 +36,25 @@ table_dict = {
 }
 
 #CONNECT TO DB (MODIFY STRING PARAMETER AS NEEDED)
-conn = psycopg2.connect('dbname=postgres user=postgres password=password host=5432')
+conn = psycopg2.connect('dbname=postgres host=localhost user=postgres password=password port=5432')
 cur = conn.cursor()
+#(cur.execute('DROP DATABASE IF EXISTS pokestars;'))
 
-cur.execute('CREATE DATABASE pokestars; COMMIT;') #COMMENT THIS LINE OUT IF ON AWS
-
+conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+cur.execute(sql.SQL("CREATE DATABASE pokestars").format(
+        sql.Identifier(self.db_name))
+    )
+#create = 'BEGIN; CREATE DATABASE pokemon; COMMIT;'
+#cur.execute(create) #COMMENT THIS LINE OUT IF ON AWS
 for key, item in table_dict.items():
 
     name, schema = item
 
     create_query = f'CREATE TABLE {name} {schema}; COMMIT;' 
-    cur.execute(query)
+    cur.execute(create_query)
 
     #ANOTHER PARAMETER UNIQUE TO THIS DB
-    data_endpoint = f'https://BUCKETNAME.s3-REGION.amazonaws.com/pokemon/{key}.csv'
+    data_endpoint = f'https://c-smith1.s3-us-west-1.amazonaws.com/pokemon/{key}.csv'
     df = pd.read_csv(data_endpoint)
     columns = df.columns
 
