@@ -31,13 +31,15 @@ def json_extract(month):
     new_nature = defaultdict()
     new_item = defaultdict()
 
-    conn = psycopg2.connect('dbname=pokestars user=postgres password=password host=localhost port=5432')
+    conn = psycopg2.connect('dbname=postgres user=postgres host=localhost port=5432 password=password')
     cur = conn.cursor()
     conn.rollback()
 
     users_insert = "INSERT INTO users VALUES ('{}', {}); COMMIT;".format(month, num_battles)
     cur.execute(users_insert)
 
+    total_pokemon = len(dic.keys())
+    c = 0
     for key, sub in dic.items():
         if sub['usage'] < 0.005:
             continue
@@ -164,13 +166,12 @@ def json_extract(month):
                 continue
             mate_insert = "INSERT INTO teammates VALUES ({}, {}, {}, '{}'); COMMIT".format(id_, mate_id, x, month)
             cur.execute(mate_insert) 
-
+        print (f'{key} data has been updated | {c}/{total_pokemon} complete')
+        c += 1
     conn.close()
 
     return num_battles
 
-
-
 if __name__ == '__main__':
-    num_battles = json_extract('2020-07')
+    num_battles = json_extract('2020-09')
     print (f'DB HAS BEEN UPDATED FOR THE CURRENT MONTH WITH {num_battles} battles')
