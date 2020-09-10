@@ -23,75 +23,79 @@ If you're interested in checking out the database, please shoot me a message at 
 I've also included all necessary scripts in the src to create your own version of this database along with a detailed walkthrough in the CreatingAnRDSonAWS.md. I highly recommend checking that out.
 
 Here's how the database is structured: 
-<br><br>
-| pokemon      |     |
-| :------------- | :----------: |
-| id     | INT - <i> unique id key|
-| name    | VARCHAR - <i> i.e. Pikachu|
-| type_1   | VARCHAR - <i> i.e. Electric|
-| type_2   | VARCHAR - <i> i.e. None|
 
-| battles      |     |
-| :------------- | :----------: |
-| id     | INT - <i> unique id key |
-| count     | INT - <i> total number of teams built with id |
-| usage    | REAL - <i> percent of battles in which pokemon was actually sent out |
-| month    | DATE |
-
-| teammates     |     |
-| :------------- | :----------: |
-| id     | INT - <i> unique id key |
-| mate_id    | INT - <i> unique id key (same as from pokemon primary table) |
-| x     | REAL - <i> numerator to calculate pct of teams having id with mate_id  
-| | <i> = x(mate_id) / usage(id) + usage(mate_id)
-| month    | DATE |
-
-| counters      |     |
-| :------------- | :----------: |
-| id     | INT - <i> unique id key |
-| counter_id    | INT - <i> unique id key (same as from pokemon primary table) |
-| num_battles    | INT - <i> matchups where id and mate_id faced off |
-| check_pct    | REAL - <i> percent of matchups where mate_id K.O.-d id or forced a switch |
-| month    | DATE |
-
-| users      |     |
-| :------------- | :----------: |
-| month     | DATE |
-| num_battles    | INT - <i> total number of battles |
-
-| natures      |     |
-| :------------- | :----------: |
-| id     | INT - <i> unique nature id key |
-| name   | VARCHAR - <i> i.e. Impish |
-
-| battle_natures      |     |
-| :------------- | :----------: |
-| id     | INT - <i> unique pokemon id key |
-| nature_id    | INT - <i> unique nature id key |
-| count    | INT - <i> number of teams with id having nature_id |
-| month    | DATE |
-
-| abilities      |     |
-| :------------- | :----------: |
-| id     | INT - <i> unique ability id key |
-| name   | VARCHAR - <i> i.e. Sheer Force |
-
-| battle_abilities      |     |
-| :------------- | :----------: |
-| id     | INT - <i> unique pokemon id key |
-| ability_id    | INT - <i> unique ability id key |
-| count    | INT - <i> number of teams with id having ability_id |
-| month    | DATE |
-
-| items      |     |
-| :------------- | :----------: |
-| id     | INT - <i> unique item id key |
-| name   | VARCHAR - <i> i.e. Choice Scarf |
-
-| battle_items      |     |
-| :------------- | :----------: |
-| id     | INT - <i> unique pokemon id key |
-| item_id    | INT - <i> unique item id key |
-| count    | INT - <i> number of teams with id having item_id |
-| month    | DATE |
+### pokemon
+| id       |  name   | type_1       |  type_2   | hp       |  attack   | defense       |  sp_attack   | sp_defense       |  speed   |
+| :------------- | :----------: | :------------- | :----------: | :------------- | :----------: | :------------- | :----------: | :------------- | :----------: |
+| INT - <i> primary key | VARCHAR | VARCHAR | VARCHAR | INT | INT | INT | INT | INT | INT | 
+| <i> unique id key | <i> i.e. Pikachu| <i> i.e. Electric| <i> i.e. None| | | | | | |
 <br>
+
+### battles
+
+| id       |  count   | usage       |  month   | 
+| :------------- | :----------: | :------------- | :----------: |
+| INT | INT | REAL | VARCHAR | 
+| <i> foreign pokemon key  | <i> total number of teams built with id| <i> pct monthly battles with id | |
+<br>
+
+### teammates
+| id       |  mate_id   | x       |  month   | 
+| :------------- | :----------: | :------------- | :----------: |
+| INT | INT | REAL | VARCHAR | 
+| <i> foreign pokemon key  | <i> foreign pokemon key | <i> numerator to calculate pct of teams having id with mate_id | | 
+| | | <i> = x(mate_id) / usage(id) + usage(mate_id) |
+<br>
+
+### counters
+| id         |  counter_id   | num_battles       |  check_pct   |      month   |
+| :------------- | :----------: | :------------- | :----------: | :----------: |
+| INT | INT | INT | REAL | VARCHAR | 
+| <i> foreign pokemon key  | <i> foreign pokemon key | <i> matchups where id and mate_id faced off  |<i> percent of matchups where mate_id K.O.-d id or forced a switch | | 
+<br>
+
+### users
+| month         |  num_battles   | 
+| :------------- | :----------: |
+| VARCHAR | INT - <i> total number of battles |
+<br>
+
+### natures
+| id         |  name   | 
+| :------------- | :----------: |
+| INT - <i> primary key | VARCHAR - <i> i.e. Impish |
+<br>
+
+### battle_natures
+| id         |  nature_id   | count       |      month   |
+| :------------- | :----------: | :------------- | :----------: |
+| INT | INT | INT | REAL | VARCHAR | 
+| <i> foreign pokemon key  | <i> foreign natures key | <i> number of teams with id having nature_id  | |
+<br>
+
+### abilities
+| id         |  name   | 
+| :------------- | :----------: |
+| INT - <i> primary key | VARCHAR - <i> i.e. Sheer Force |
+<br>
+
+### battle_abilities
+| id         |  ability_id   | count       |      month   |
+| :------------- | :----------: | :------------- | :----------: |
+| INT | INT | INT | REAL | VARCHAR | 
+| <i> foreign pokemon key  | <i> foreign abilities key | <i> number of teams with id having ability_id  | |
+<br>
+
+### items
+| id         |  name   | 
+| :------------- | :----------: |
+| INT - <i> primary key | VARCHAR - <i> i.e. Sheer Force |
+<br>
+
+### battle_items
+| id         |  item_id   | count       |      month   |
+| :------------- | :----------: | :------------- | :----------: |
+| INT | INT | INT | REAL | VARCHAR | 
+| <i> foreign pokemon key  | <i> foreign items key | <i> number of teams with id having item_id  | |
+<br>
+
