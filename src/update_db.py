@@ -20,13 +20,24 @@ def get_data(month):
     return data
 
 def json_extract(month):
-
+    """
+    FUNCTION TO LOOP THROUGH DICTIONARY-STRUCTURED BATTLING DATA 
+    & WRITE TO EACH DATABASE TABLE LINE-BY-LINE
+    Author's Note to self: Much of this code is borrowed from the original data clean script and
+                 can be modularized further. Writing to a database line-by-line is also very slow.
+                 Future refactoring to-do list:
+                    1. TRY TO FIGURE OUT HOW TO, IF POSSIBLE, UPDATE A TABLE WITH A CSV
+                    2. Modularize if statements that trigger writing new information to the database
+                    3. Grab all reference tables upfront (rather than iteratively for each)
+                    4. Figure out how to enter month from the command line
+    """
     data = get_data(month)
     dic = data['data']
     month = month[-2:] + '-' + month[:4]
     num_battles = data['info']['number of battles']
 
-    new_usage = defaultdict()
+    #DICTIONARIES TO TRACK WHETHER WE'VE ALREADY QUERIED A PARTICULAR ID
+    new_usage = defaultdict() 
     new_ability = defaultdict() 
     new_nature = defaultdict()
     new_item = defaultdict()
@@ -37,7 +48,8 @@ def json_extract(month):
 
     users_insert = "INSERT INTO users VALUES ('{}', {}); COMMIT;".format(month, num_battles)
     cur.execute(users_insert)
-
+    
+    print ('Fetching Data')
     total_pokemon = len(dic.keys())
     c = 0
     for key, sub in dic.items():
@@ -166,6 +178,7 @@ def json_extract(month):
                 continue
             mate_insert = "INSERT INTO teammates VALUES ({}, {}, {}, '{}'); COMMIT".format(id_, mate_id, x, month)
             cur.execute(mate_insert) 
+        #THIS PRINT STATEMENT WILL LIKELY NEVER GO TO '100%' COMPLETE AS WE PASS OVER NEGIBLE POKEMON USAGE
         print (f'{key} data has been updated | {c}/{total_pokemon} complete')
         c += 1
     conn.close()
