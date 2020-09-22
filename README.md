@@ -1,6 +1,6 @@
 # Pokestars
 
-***NOTE*** : Please check out these link if embedded Tableau visuals do not work on your device: https://public.tableau.com/profile/isaac.campbell.smith#!/vizhome/PokemonShowdown/Dashboard1<br>
+***NOTE*** : Please check out these link if embedded Tableau visuals do not work on your device: https://public.tableau.com/profile/isaac.campbell.smith#!/vizhome/PokemonShowdown/MostPopularPokemon<br>
 https://public.tableau.com/profile/isaac.campbell.smith#!/vizhome/LatestPokemonStats/AugustUsage
 
 <p align="justify">
