@@ -72,7 +72,7 @@ Here's how the database is structured:
 ### battle_natures
 | id         |  nature_id   | count       |      month   |
 | :------------- | :----------: | :------------- | :----------: |
-| INT | INT | INT | REAL | VARCHAR | 
+| INT | INT | INT | VARCHAR | 
 | <i> foreign pokemon key  | <i> foreign natures key | <i> number of teams with id having nature_id  | |
 <br>
 
@@ -85,7 +85,7 @@ Here's how the database is structured:
 ### battle_abilities
 | id         |  ability_id   | count       |      month   |
 | :------------- | :----------: | :------------- | :----------: |
-| INT | INT | INT | REAL | VARCHAR | 
+| INT | INT | INT | VARCHAR | 
 | <i> foreign pokemon key  | <i> foreign abilities key | <i> number of teams with id having ability_id  | |
 <br>
 
@@ -98,7 +98,7 @@ Here's how the database is structured:
 ### battle_items
 | id         |  item_id   | count       |      month   |
 | :------------- | :----------: | :------------- | :----------: |
-| INT | INT | INT | REAL | VARCHAR | 
+| INT | INT | INT | VARCHAR | 
 | <i> foreign pokemon key  | <i> foreign items key | <i> number of teams with id having item_id  | |
 <br>
 
