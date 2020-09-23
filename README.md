@@ -42,21 +42,6 @@ Here's how the database is structured:
 | <i> foreign pokemon key  | <i> total number of teams built with id| <i> pct monthly battles with id | |
 <br>
 
-### teammates
-| id       |  mate_id   | x       |  month   | 
-| :------------- | :----------: | :------------- | :----------: |
-| INT | INT | REAL | VARCHAR | 
-| <i> foreign pokemon key  | <i> foreign pokemon key | <i> numerator to calculate pct of teams having id with mate_id | | 
-| | | <i> = x(mate_id) / usage(id) + usage(mate_id) |
-<br>
-
-### counters
-| id         |  counter_id   | num_battles       |  check_pct   |      month   |
-| :------------- | :----------: | :------------- | :----------: | :----------: |
-| INT | INT | INT | REAL | VARCHAR | 
-| <i> foreign pokemon key  | <i> foreign pokemon key | <i> matchups where id and mate_id faced off  |<i> percent of matchups where mate_id K.O.-d id or forced a switch | | 
-<br>
-
 ### users
 | month         |  num_battles   | 
 | :------------- | :----------: |
@@ -102,3 +87,34 @@ Here's how the database is structured:
 | <i> foreign pokemon key  | <i> foreign items key | <i> number of teams with id having item_id  | |
 <br>
 
+### counters
+| id         |  counter_id   | num_battles       |  check_pct   |      month   |
+| :------------- | :----------: | :------------- | :----------: | :----------: |
+| INT | INT | INT | REAL | VARCHAR | 
+| <i> foreign pokemon key  | <i> foreign pokemon key | <i> matchups where id and mate_id faced off  |<i> percent of matchups where mate_id K.O.-d id or forced a switch | | 
+<br>
+
+### teammates
+| id       |  mate_id   | x       |  month   | 
+| :------------- | :----------: | :------------- | :----------: |
+| INT | INT | REAL | VARCHAR | 
+| <i> foreign pokemon key  | <i> foreign pokemon key | <i> numerator to calculate pct of teams having id with mate_id | | 
+| | | <i> = x / count(id) + usage(mate_id) |
+<br>
+I'll include a bit more explanation on this x column in the teammates table because I scratched my head for so long over that value when I initially grabbed the raw json files. No clue why or how they came up with this number, but according to Pokemon Showdown's principle creator and data wiz, to obtain the probability that a specific Pokemon has a specific teammate you need to calculate this formula.<br><br>
+
+P(mate_id|id) = x/count + usage
+<br><br>
+For example, say you wanted to know the probability that Skarmory appears on a team given that that team has Blissey, for the month of August 2015. You start with x in the teammates table where id=Blissey_id AND mate_id=Skarmory_id. In this case, x=3837.95. Blissey appeared in 86,759 teams that month, so count=86759. Skarmory's usage that month was 7.82%. <br>Putting it all together:<br><br>
+P(Skarmory|Blissey) = 3837.95/86759 + 0.072 = 0.122
+<br><br>
+the SQL query to do that would be:
+
+>SELECT t.x / b1.count + b2.usage AS proba<br><br>
+&nbsp;&nbsp; FROM teammates AS t<br><br>
+&nbsp;&nbsp;&nbsp;&nbsp; JOIN battles b1 ON t.id=b1.id AND t.month=b1.month<br><br>
+&nbsp;&nbsp;&nbsp;&nbsp; JOIN pokemon p1 ON t.id=p1.id<br><br>
+&nbsp;&nbsp;&nbsp;&nbsp; JOIN battles b2 ON t.mate_id=b2.id AND t.month=b2.month<br><br>
+&nbsp;&nbsp;&nbsp;&nbsp; JOIN pokemon p2 ON t.mate_id=p2.id<br><br>
+WHERE p1.name='Skarmory' AND p2.name='Blissey' AND t.month='08-2015'
+<br>
