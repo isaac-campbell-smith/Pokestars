@@ -21,7 +21,7 @@ Even though more Pokemon have become available over time(Generation 7 in June 20
 <br><br>
 <img src="https://raw.githubusercontent.com/isaac-campbell-smith/Pokestars/master/figures/Top3usage.png">
 <br><br>
-If you're interested in checking out the database, please shoot me a message at icampsmith@gmail.com 
+If you're interested in checking out the database, please shoot me a message at icampsmith@gmail.com. I also lead a twice monthly (currently remote) casual SQL practice night called Wine & SQL. You'll need to contact me for access information, but I'm archiving all the question sets/solutions in the notebooks folder of this repo if you're interested in trying your hand at them. 
 
 I've also included all necessary scripts in the src to create your own version of this database along with a detailed walkthrough in the CreatingAnRDSonAWS.md. I highly recommend checking that out.
 
