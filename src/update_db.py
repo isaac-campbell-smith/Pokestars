@@ -19,7 +19,7 @@ def get_data(month):
     data = json.loads(content)
     return data
 
-def json_extract(month):
+def json_extract(month, sql_str):
     """
     FUNCTION TO LOOP THROUGH DICTIONARY-STRUCTURED BATTLING DATA 
     & WRITE TO EACH DATABASE TABLE LINE-BY-LINE
@@ -42,7 +42,7 @@ def json_extract(month):
     new_nature = defaultdict()
     new_item = defaultdict()
 
-    conn = psycopg2.connect('dbname=postgres user=postgres host=localhost port=5432 password=password')
+    conn = psycopg2.connect(sql_str)
     cur = conn.cursor()
     conn.rollback()
 
@@ -186,5 +186,7 @@ def json_extract(month):
     return num_battles
 
 if __name__ == '__main__':
-    num_battles = json_extract('2020-09')
+    with open('pw') as pw_file:
+        pw = pw_file.readline()
+    num_battles = json_extract('2020-09', pw)
     print (f'DB HAS BEEN UPDATED FOR THE CURRENT MONTH WITH {num_battles} battles')
