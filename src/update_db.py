@@ -19,6 +19,61 @@ def get_data(month):
     data = json.loads(content)
     return data
 
+def new_poke_update(id_, poke):
+    """
+    Pulls new Pokemon stats from Serebii & concatenates data into sql string
+    """
+    base_url = 'https://serebii.net/pokedex-swsh/'
+    
+    sql = "UPDATE pokemon SET (type_1, type_2, attack, defense, sp_attack, sp_defense, speed) "
+
+    try:
+        url = base_url + poke.lower().split('-')[0] + '/'
+        r = requests.get(url)
+        soup = BeautifulSoup(r.content, 'html')
+        dextable = soup.find_all('table', {'class':'dextable'})
+        
+        #Checks whether this is a base forme
+        forme_check = lambda s: 'Galar' in s or 'Mega' in s or 'Alola' in s
+        
+        if forme_check(poke):
+            stat_idx = 1
+            type_grab = False
+        else:
+            stat_idx = 0 
+            type_grab = True
+            
+        #Checks for Pokemon w/ Multiple Formes
+        if dextable[1].find('td', {'class':'cen'}).find_all('td'):
+            #Boolean trigger for grabbing 1 of 2 type pairs
+            alt_check = lambda s: 'Normal' not in s and '\n' not in s  
+            for section in dextable[1].find('td', {'class':'cen'}).find_all('td'):
+                if type_grab and '\n' in section.text:
+                    types = [a.find('img')['alt'].replace('-type', '') for a in section.find_all('a')]
+                    break
+                if alt_check(section.text):
+                    type_grab = True
+        else: 
+            types = [td.find('img')['alt'].replace('-type', '') for td in dextable[1].find_all('a')]
+        
+        if len(types) == 1:
+            types.append('None')
+        
+        #EXTRACT STATS TOTALS (NOTICE STAT_IDX)
+        base_stats = [t.text for t in dextable if 'Base Stats - Total' in t.text]
+        hp, at, df, spa, spd, spe = [int(stat) for stat in base_stats[stat_idx].split('Base Stats - Total: ')[1].split('\n')[1:7]]
+
+        #COMPLETE SQL STRING
+        sql += "VALUES ('{}', '{}', ".format(types[0], types[1])
+        sql +=  "{}, {}, {}, {}, {}, {}) WHERE id = {}; COMMIT;".format(hp, at, df, spa, spd, spe, id_)
+
+        print (types)
+        print (hp, at, df, spa, spd, spe)
+    except:
+        print ("FAILED TO COLLECT DATA!!")
+
+    return sql
+
 def json_extract(month, sql_str):
     """
     FUNCTION TO LOOP THROUGH DICTIONARY-STRUCTURED BATTLING DATA 
@@ -30,6 +85,7 @@ def json_extract(month, sql_str):
                     2. Modularize if statements that trigger writing new information to the database
                     3. Grab all reference tables upfront (rather than iteratively for each)
                     4. Figure out how to enter month from the command line
+                    5. Auto update new Pokemon stats
     """
     data = get_data(month)
     dic = data['data']
@@ -67,9 +123,15 @@ def json_extract(month, sql_str):
             if id_ == None:
                 cur.execute("SELECT MAX(id) FROM pokemon;")
                 id_ = cur.fetchone()[0] + 1
+                
                 pokemon_insert = "INSERT INTO pokemon (id, name) VALUES ({}, '{}'); COMMIT;".format(id_, key)
                 cur.execute(pokemon_insert)
                 print ("NEW POKEMON:", id_, key)
+                try:
+                    update_str = new_poke_update(id_, poke)
+                    cur.execute(update_str)
+                except:
+                    pass
             else:
                 id_ = id_[0]
             new_usage[key]=id_
@@ -186,7 +248,7 @@ def json_extract(month, sql_str):
     return num_battles
 
 if __name__ == '__main__':
-    with open('pw') as pw_file:
+    with open('src/pw') as pw_file:
         pw = pw_file.readline()
-    num_battles = json_extract('2020-09', pw)
+    num_battles = json_extract('2020-10', pw)
     print (f'DB HAS BEEN UPDATED FOR THE CURRENT MONTH WITH {num_battles} battles')
