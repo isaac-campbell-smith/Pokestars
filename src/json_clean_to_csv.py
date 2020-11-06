@@ -43,7 +43,25 @@ class Popularity(PokeData):
         out = pd.DataFrame([[month, value]], columns=self.columns)
         return out
     
-## MONTHLY POKEMON USAGE EXTRACTION        
+class PokeReference():
+    """
+    Simple counter and dictionary class to track reference codes for database values
+        Used within Usage Class (pokemon, abilities, natures, items)
+    """
+    def __init__(self):
+        self.next_id = 0
+        self.info = dict()
+        
+    def update_ids(self, name):
+        if name not in self.info:
+            self.info[name] = self.next_id
+            self.next_id += 1    
+    
+    def pandify(self):
+        df = pd.DataFrame(self.info.items(), columns=['name', 'id'])[['id', 'name']]
+        return df
+
+## MONTHLY POKEMON USAGE EXTRACTION   
 class Usage(PokeData):
     """
     Child class that stores: 
@@ -58,72 +76,17 @@ class Usage(PokeData):
     """
     def __init__(self, columns=['id', 'month', 'count', 'usage']):
         PokeData.__init__(self, columns)
-        self.ids = dict()
-        self.abilities = dict()
-        self.natures = dict()
-        self.item = dict()
-        
-        self.next_id = 0 #tracks the next Pokemon id to store
-        self.next_ab = 0            #next Ability id to store
-        self.next_nat = 0            #next Nature id to store
+
+        self.ids = PokeReference()
+        self.abilities = PokeReference()
+        self.natures = PokeReference()
+        self.items = PokeReference()
         
         self.teammate_df = pd.DataFrame(columns=['id', 'mate_id', 'x', 'month'])
         self.counter_df = pd.DataFrame(columns=['id', 'counter_id', 'num_battles', 'check_pct', 'month'])
         self.ability_df = pd.DataFrame(columns=['id', 'ability_id', 'count', 'month'])
         self.nature_df = pd.DataFrame(columns=['id', 'nature_id', 'count', 'month'])
-        self.items_df = pd.DataFrame(columns=['id', 'item_id', 'count', 'month'])
-        
-    def _update_ids(self, name):
-        """
-        Check if the name is in a dictionary & return it's value. 
-        Otherwise update the dictionary & current count accordingly.
-        INPUT:
-            dic : dictionary
-            x   : int
-            name: string
-        """ 
-        if name not in self.ids:
-            self.ids[name] = self.next_id
-            self.next_id += 1
-            
-    def _update_abilities(self, name):
-        """
-        Check if the name is in a dictionary & return it's value. 
-        Otherwise update the dictionary & current count accordingly.
-        INPUT:
-            dic : dictionary
-            x   : int
-            name: string
-        """ 
-        if name not in self.abilities:
-            self.abilities[name] = self.next_ab
-            self.next_ab += 1
-            
-    def _update_natures(self, name):
-        """
-        Check if the name is in a dictionary & return it's value. 
-        Otherwise update the dictionary & current count accordingly.
-        INPUT:
-            dic : dictionary
-            x   : int
-            name: string
-        """         
-        if name not in self.natures:
-            self.natures[name] = self.next_nat
-            self.next_nat += 1
-            
-    def _update_items(self, name):
-        """
-        Check if the name is in a dictionary & return it's value. 
-        Otherwise update the dictionary & current count accordingly.
-        INPUT:
-            dic : dictionary
-            x   : int
-            name: string
-        """         
-        if name not in self.item:
-            self.item[name] = self.next_ite
-            self.next_ite += 1     
+        self.items_df = pd.DataFrame(columns=['id', 'item_id', 'count', 'month'])  
             
     def _add_new_data(self, dic=dict, month=str, targets=dict):
         out = defaultdict(list) #new dictionary for usage status
@@ -139,8 +102,8 @@ class Usage(PokeData):
             if sub['usage'] < 0.005:
                 continue
                 
-            self._update_ids(key)
-            id_ = self.ids[key] #primary pokemon key
+            self.ids.update_ids(key)
+            id_ = self.ids.info[key] #primary pokemon key
             out['id'].append(id_)
             out['month'].append(month) 
             
@@ -148,16 +111,16 @@ class Usage(PokeData):
                 out[k].append(sub[v])
                 
             for ability, count in sub['Abilities'].items():
-                self._update_abilities(ability)
+                self.abilities.update_ids(ability)
                 new_ability['id'].append(id_) #primary pokemon key
-                new_ability['ability_id'].append(self.abilities[ability])
+                new_ability['ability_id'].append(self.abilities.info[ability])
                 new_ability['count'].append(count)
                 new_ability['month'].append(month)
                 
             for item, count in sub['Items'].items():
-                self._update_items(item)
+                self.items.update_ids(item)
                 new_item['id'].append(id_)
-                new_item['item_id'].append(self.item[item])
+                new_item['item_id'].append(self.items.info[item])
                 new_item['count'].append(count)
                 new_item['month'].append(month)
             
@@ -165,33 +128,33 @@ class Usage(PokeData):
             
             for spread, count in sub['Spreads'].items():
                 nature = spread.split(':')[0]
-                self._update_natures(nature)
+                self.natures.update_ids(nature)
                 sub_nature_vals[nature] += count
                 
             for nature, count in sub_nature_vals.items():
                 new_nature['id'].append(id_)
-                new_nature['nature_id'].append(self.natures[nature])
+                new_nature['nature_id'].append(self.natures.info[nature])
                 new_nature['count'].append(count)
                 new_nature['month'].append(month)
                 
             for counter, arr in sub['Checks and Counters'].items():
                 if counter in dic.keys() and arr[1] > 0.5:
-                    self._update_ids(counter)
+                    self.ids.update_ids(counter)
                 else:
                     continue
                 new_counters['id'].append(id_)
-                new_counters['counter_id'].append(self.ids[counter])
+                new_counters['counter_id'].append(self.ids.info[counter])
                 new_counters['num_battles'].append(arr[0])
                 new_counters['check_pct'].append(arr[1])
                 new_counters['month'].append(month)
                 
             for mate, x in sub['Teammates'].items():
                 if mate in dic.keys() and dic[mate]['usage'] > 0.005:
-                    self._update_ids(mate)
+                    self.ids.update_ids(mate)
                 else:
                     continue
                 new_teammates['id'].append(id_)
-                new_teammates['mate_id'].append(self.ids[mate])
+                new_teammates['mate_id'].append(self.ids.info[mate])
                 new_teammates['x'].append(x)
                 new_teammates['month'].append(month)
                 
@@ -219,6 +182,11 @@ class Usage(PokeData):
 
         return out
 
+def save_to_folder(df, wp, name):
+    full_path = f'{wp}{name}.csv'
+    df.to_csv(full_path, header=True, index=False)
+    return
+
 if __name__ == '__main__':
 
     popularity = Popularity()
@@ -243,15 +211,10 @@ if __name__ == '__main__':
         
     write_folder = '~/Pokestars/data/clean/'
     
-    pokemon_ref = pd.DataFrame(usage.ids.items(), columns=['name', 'id'])[['id', 'name']]
-    nature_ref = pd.DataFrame(usage.natures.items(), columns=['name', 'id'])[['id', 'name']]
-    ability_ref = pd.DataFrame(usage.abilities.items(), columns=['name', 'id'])[['id', 'name']]
-    item_ref = pd.DataFrame(usage.item.items(), columns=['name', 'id'])[['id', 'name']]
-    
-    pokemon_ref.to_csv(write_folder+'pokemon_reference.csv', header=True, index=False)
-    nature_ref.to_csv(write_folder+'nature_reference.csv', header=True, index=False)
-    ability_ref.to_csv(write_folder+'ability_reference.csv', header=True, index=False)
-    item_ref.to_csv(write_folder+'item_reference.csv', header=True, index=False)
+    reference_dicts = [usage.ids, usage.natures, usage.abilities, usage.items]
+    for ref, name in zip(reference_dicts, ['pokemon', 'nature', 'ability', 'item']):
+        save_to_folder(ref.pandify(), write_folder, name+'_reference')
+
     popularity.df.to_csv(write_folder+'monthly_popularity.csv', header=True, index=False)
     usage.df.to_csv(write_folder+'battle_counts.csv', header=True, index=False)
     usage.nature_df.to_csv(write_folder+'nature_counts.csv', header=True, index=False)
