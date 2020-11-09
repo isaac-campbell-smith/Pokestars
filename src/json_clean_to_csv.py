@@ -28,6 +28,7 @@ class PokeData():
         self.df = pd.DataFrame(columns=columns)  
         
     def _add_new_data(**kwargs):
+        #new_data = defaultdict(list)
         return
     
     def update_df(self, **kwargs):
@@ -36,31 +37,82 @@ class PokeData():
         
 ## MONTHLY POPULARITY EXTRACTION        
 class Popularity(PokeData):
+    """
+    Specific to outer layer of JSON file containing all user statistics
+    """
     def __init__(self, columns=['month', 'num_battles']):
         PokeData.__init__(self, columns)
         
     def _add_new_data(self, month=str, value=int):
         out = pd.DataFrame([[month, value]], columns=self.columns)
         return out
-    
+
 class PokeReference():
     """
     Simple counter and dictionary class to track reference codes for database values
-        Used within Usage Class (pokemon, abilities, natures, items)
+        Used within Usage Class (pokemon, abilities, natures, items)   
+    INPUT
+        dict_label => str, the target data key for the Showdown JSON file
+        id_label => str 
+            (i.e. 'Abilities' & 'ability_id')
     """
-    def __init__(self):
+    def __init__(self, dict_label=None, id_label='id'):
         self.next_id = 0
         self.info = dict()
+        self.dict_label = dict_label 
+        self.id_label = id_label
         
     def update_ids(self, name):
+        """
+        Method checks if name is not in self.info (id reference dictionary)
+        & Updates accordingly
+        """
         if name not in self.info:
             self.info[name] = self.next_id
-            self.next_id += 1    
+            self.next_id += 1  
+            
+    def _initialize_new_data(self):
+        """
+        Initializes a new object to clean/store a new month's worth of data
+        """
+        self.new_data = defaultdict(list)
+        return
     
+    def _add_new_data(self, month, dic, id_=None, key=None):
+        """
+        Method to update self.new_data object
+        INPUT
+            month => str
+            dic => dict containing nebulus usage data on a single pokemon
+            id_ => int or none, relating to outer for/loop of data cleaning 
+            key => str or none, relating to outer for/loop for data cleaning
+        OUTPUT
+            None if id_ is given, otherwise id_ (int) 
+            *IMPORTANT* id_ should only passed when using this Class for Pokemon 
+            as this value is what ties the whole dataset together
+        """
+        if id_ != None:
+            for item, count in dic[self.dict_label].items():
+                self.update_ids(item)
+                self.new_data['id'].append(id_)
+                self.new_data[self.id_label].append(self.info[item])
+                self.new_data['count'].append(count)
+                self.new_data['month'].append(month)
+            return
+            
+        else:
+            self.update_ids(key)
+            id_ = self.info[key] #primary pokemon key
+            self.new_data['id'].append(id_)
+            self.new_data['month'].append(month) 
+            self.new_data['count'].append(dic['Raw count'])
+            self.new_data['usage'].append(dic['usage'])
+            return id_
+            
     def pandify(self):
         df = pd.DataFrame(self.info.items(), columns=['name', 'id'])[['id', 'name']]
         return df
-
+    
 ## MONTHLY POKEMON USAGE EXTRACTION   
 class Usage(PokeData):
     """
@@ -78,9 +130,9 @@ class Usage(PokeData):
         PokeData.__init__(self, columns)
 
         self.ids = PokeReference()
-        self.abilities = PokeReference()
-        self.natures = PokeReference()
-        self.items = PokeReference()
+        self.abilities = PokeReference(dict_label='Abilities', id_label='ability_id')
+        self.items = PokeReference(dict_label='Items', id_label='item_id')
+        self.natures = PokeReference(dict_label='Spreads', id_label='nature_id')
         
         self.teammate_df = pd.DataFrame(columns=['id', 'mate_id', 'x', 'month'])
         self.counter_df = pd.DataFrame(columns=['id', 'counter_id', 'num_battles', 'check_pct', 'month'])
@@ -88,12 +140,36 @@ class Usage(PokeData):
         self.nature_df = pd.DataFrame(columns=['id', 'nature_id', 'count', 'month'])
         self.items_df = pd.DataFrame(columns=['id', 'item_id', 'count', 'month'])  
             
-    def _add_new_data(self, dic=dict, month=str, targets=dict):
-        out = defaultdict(list) #new dictionary for usage status
+    def _combine_data(self, new_teammates, new_counters, new_nature):
+        self.teammate_df = pd.concat([self.teammate_df, 
+                                     pd.DataFrame(new_teammates)], 
+                                     sort=False, ignore_index=True)
+
+        self.counter_df = pd.concat([self.counter_df, 
+                                     pd.DataFrame(new_counters)], 
+                                     sort=False, ignore_index=True)
+                        
+        self.ability_df = pd.concat([self.ability_df, 
+                                     pd.DataFrame(self.abilities.new_data)], 
+                                     sort=False, ignore_index=True)
         
-        new_ability = defaultdict(list) #ability stats
+        self.nature_df = pd.concat([self.nature_df, 
+                                     pd.DataFrame(new_nature)], 
+                                     sort=False, ignore_index=True)
+
+        self.items_df = pd.concat([self.items_df,
+                                   pd.DataFrame(self.items.new_data)],
+                                   sort=False, ignore_index=True)
+        
+        out = pd.DataFrame(self.ids.new_data)
+        return out
+    
+    def _add_new_data(self, dic=dict, month=str):
+        self.ids._initialize_new_data()
+        self.abilities._initialize_new_data()
+        self.items._initialize_new_data()
+        
         new_nature = defaultdict(list) #
-        new_item = defaultdict(list)
         new_counters = defaultdict(list)
         new_teammates = defaultdict(list)
         
@@ -102,28 +178,11 @@ class Usage(PokeData):
             if sub['usage'] < 0.005:
                 continue
                 
-            self.ids.update_ids(key)
-            id_ = self.ids.info[key] #primary pokemon key
-            out['id'].append(id_)
-            out['month'].append(month) 
-            
-            for k, v in targets.items():
-                out[k].append(sub[v])
-                
-            for ability, count in sub['Abilities'].items():
-                self.abilities.update_ids(ability)
-                new_ability['id'].append(id_) #primary pokemon key
-                new_ability['ability_id'].append(self.abilities.info[ability])
-                new_ability['count'].append(count)
-                new_ability['month'].append(month)
-                
-            for item, count in sub['Items'].items():
-                self.items.update_ids(item)
-                new_item['id'].append(id_)
-                new_item['item_id'].append(self.items.info[item])
-                new_item['count'].append(count)
-                new_item['month'].append(month)
-            
+            id_ = self.ids._add_new_data(month, sub, key=key)
+
+            self.abilities._add_new_data(month, sub, id_=id_)
+            self.items._add_new_data(month, sub, id_=id_)
+
             sub_nature_vals = defaultdict(int)
             
             for spread, count in sub['Spreads'].items():
@@ -157,30 +216,8 @@ class Usage(PokeData):
                 new_teammates['mate_id'].append(self.ids.info[mate])
                 new_teammates['x'].append(x)
                 new_teammates['month'].append(month)
-                
-        self.teammate_df = pd.concat([self.teammate_df, 
-                                     pd.DataFrame(new_teammates)], 
-                                     sort=False, ignore_index=True)
-        
-        self.counter_df = pd.concat([self.counter_df, 
-                                     pd.DataFrame(new_counters)], 
-                                     sort=False, ignore_index=True)
-                        
-        self.ability_df = pd.concat([self.ability_df, 
-                                     pd.DataFrame(new_ability)], 
-                                     sort=False, ignore_index=True)
-        
-        self.nature_df = pd.concat([self.nature_df, 
-                                     pd.DataFrame(new_nature)], 
-                                     sort=False, ignore_index=True)
 
-        self.items_df = pd.concat([self.items_df,
-                                   pd.DataFrame(new_item)],
-                                   sort=False, ignore_index=True)
-        
-        out = pd.DataFrame(out)
-
-        return out
+        return self._combine_data(new_teammates, new_counters, new_nature)
 
 def save_to_folder(df, wp, name):
     full_path = f'{wp}{name}.csv'
@@ -204,8 +241,7 @@ if __name__ == '__main__':
             num_battles = d['info']['number of battles']
 
             popularity.update_df(month=month, value=num_battles)
-            usage.update_df(dic=dic, month=month, targets={'count':'Raw count',
-                                                           'usage':'usage'})
+            usage.update_df(dic=dic, month=month)
         except:
             pass
         
