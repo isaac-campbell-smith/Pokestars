@@ -70,48 +70,41 @@ def new_poke_update(id_, poke):
         print (types)
         print (hp, at, df, spa, spd, spe)
     except:
-        print ("FAILED TO COLLECT DATA!!")
-
+        print ("FAILED TO COLLECT SEREBII DATA!!")
+        sql = None
     return sql
 
 class PokeData():
-    def __init__(self, table_name, update_str):
-        self.stats = defaultdict()
+    def __init__(self, table_name, update_str, cur):
         self.table = table_name
         self.update_str = update_str
+        self._get_current_data(cur)
+
+    def _get_current_data(self, cur):
+        sql = "SELECT name, id FROM {};".format(self.table)
+        cur.execute(sql)
+        data = cur.fetchall()
+        self.stats = dict(data)
+        return
 
     def _db_check(self, key, cur, auto_update=True):
         if key in self.stats:
             id_ = self.stats[key]
 
-        else:
-            if self.table == 'pokemon':
-                name = key.split("'")[0]
-            else:
-                name = key
-
-            new_value_check = "SELECT id FROM {} WHERE name LIKE '{}%'".format(self.table, name)
-            cur.execute(new_value_check)
-            id_ = cur.fetchone()
-
-            if id_ == None and auto_update:
-                cur.execute("SELECT MAX(id) FROM {};".format(self.table))
-                id_ = cur.fetchone()[0] + 1                
-                sql_insert = "INSERT INTO {} {} VALUES ({}, '{}'); COMMIT;".format(self.table, self.update_str, id_, key)
-                cur.execute(sql_insert)
-                print ("NEW [{}] VALUE:".format(self.table), id_, key)
-
-                try:
-                    if self.table == 'pokemon':
-                        update_str = new_poke_update(id_, poke)
-                        cur.execute(update_str)
-                except:
-                    print ("FAILED TO UPDATE DB WITH SEREBII DATA")
-
-            else:
-                id_ = id_[0]
-
+        elif auto_update:
+            id_ = max(self.stats.values()) + 1   
+            sql = "INSERT INTO {} {} VALUES ({}, '{}'); COMMIT;".format(self.table, self.update_str, id_, key)
+            cur.execute(sql)
+            print ("NEW [{}] VALUE:".format(self.table), id_, key)
             self.stats[key]=id_
+
+            if self.table == 'pokemon':
+                update_str = new_poke_update(id_, key)
+                if update_str:
+                    cur.execute(update_str)     
+
+        else:
+            return None
 
         return id_
 
@@ -120,10 +113,6 @@ class sqlWorker():
         self.month = month
         self.pw = pw
         self.c = 0
-        self.usage = PokeData('pokemon', '(id, name)')
-        self.abilities = PokeData('abilities', '') 
-        self.natures = PokeData('natures', '')
-        self.items = PokeData('items', '')
 
     def _get_data(self):
         """
@@ -146,16 +135,25 @@ class sqlWorker():
         self.conn.rollback()
         return
 
+    def _initialize_current_db_data(self):
+        self.usage = PokeData('pokemon', '(id, name)', self.cur)
+        self.abilities = PokeData('abilities', '', self.cur) 
+        self.natures = PokeData('natures', '', self.cur)
+        self.items = PokeData('items', '', self.cur)
+        return
+
     def _upload(self, table_name, v1, v2, v3, v4):
-        sql = "INSERT INTO " + table_name 
-        sql += " VALUES ({}, {}, {}, '{}'); COMMIT;".format(v1, v2, v3, v4)
-        self.cur.execute(sql)
+        if v2:
+            sql = "INSERT INTO " + table_name 
+            sql += " VALUES ({}, {}, {}, '{}'); COMMIT;".format(v1, v2, v3, v4)
+            self.cur.execute(sql)
         return
 
     def extract_data(self):
         print ('Fetching Data \n')
         self._get_data()
         self._connect_to_db()
+        self._initialize_current_db_data()
         print ('Connected to DataBase Server \n')
 
         sql = "INSERT INTO users VALUES ('{}', {}); COMMIT;".format(self.month, self.num_battles)
