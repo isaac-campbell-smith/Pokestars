@@ -74,181 +74,140 @@ def new_poke_update(id_, poke):
 
     return sql
 
-def json_extract(month, sql_str):
-    """
-    FUNCTION TO LOOP THROUGH DICTIONARY-STRUCTURED BATTLING DATA 
-    & WRITE TO EACH DATABASE TABLE LINE-BY-LINE
-    Author's Note to self: Much of this code is borrowed from the original data clean script and
-                 can be modularized further. Writing to a database line-by-line is also very slow.
-                 Future refactoring to-do list:
-                    1. TRY TO FIGURE OUT HOW TO, IF POSSIBLE, UPDATE A TABLE WITH A CSV
-                    2. Modularize if statements that trigger writing new information to the database
-                    3. Grab all reference tables upfront (rather than iteratively for each)
-                    4. Figure out how to enter month from the command line
-                    5. Auto update new Pokemon stats
-    """
-    data = get_data(month)
-    dic = data['data']
-    month = month[-2:] + '-' + month[:4]
-    num_battles = data['info']['number of battles']
+class PokeData():
+    def __init__(self, table_name, update_str):
+        self.stats = defaultdict()
+        self.table = table_name
+        self.update_str = update_str
 
-    #DICTIONARIES TO TRACK WHETHER WE'VE ALREADY QUERIED A PARTICULAR ID
-    new_usage = defaultdict() 
-    new_ability = defaultdict() 
-    new_nature = defaultdict()
-    new_item = defaultdict()
+    def _db_check(self, key, cur, auto_update=True):
+        if key in self.stats:
+            id_ = self.stats[key]
 
-    conn = psycopg2.connect(sql_str)
-    cur = conn.cursor()
-    conn.rollback()
-
-    users_insert = "INSERT INTO users VALUES ('{}', {}); COMMIT;".format(month, num_battles)
-    cur.execute(users_insert)
-    
-    print ('Fetching Data')
-    total_pokemon = len(dic.keys())
-    c = 0
-    for key, sub in dic.items():
-        if sub['usage'] < 0.005:
-            continue
-        
-        if key in new_usage:
-            id_ = new_usage[key]
         else:
-            name = key.split("'")[0]
-            new_poke_check = "SELECT id FROM pokemon WHERE name LIKE '{}%'".format(name)
-            cur.execute(new_poke_check)
+            if self.table == 'pokemon':
+                name = key.split("'")[0]
+            else:
+                name = key
+
+            new_value_check = "SELECT id FROM {} WHERE name LIKE '{}%'".format(self.table, name)
+            cur.execute(new_value_check)
             id_ = cur.fetchone()
 
-            if id_ == None:
-                cur.execute("SELECT MAX(id) FROM pokemon;")
-                id_ = cur.fetchone()[0] + 1
-                
-                pokemon_insert = "INSERT INTO pokemon (id, name) VALUES ({}, '{}'); COMMIT;".format(id_, key)
-                cur.execute(pokemon_insert)
-                print ("NEW POKEMON:", id_, key)
+            if id_ == None and auto_update:
+                cur.execute("SELECT MAX(id) FROM {};".format(self.table))
+                id_ = cur.fetchone()[0] + 1                
+                sql_insert = "INSERT INTO {} {} VALUES ({}, '{}'); COMMIT;".format(self.table, self.update_str, id_, key)
+                cur.execute(sql_insert)
+                print ("NEW [{}] VALUE:".format(self.table), id_, key)
+
                 try:
-                    update_str = new_poke_update(id_, poke)
-                    cur.execute(update_str)
+                    if self.table == 'pokemon':
+                        update_str = new_poke_update(id_, poke)
+                        cur.execute(update_str)
                 except:
-                    pass
+                    print ("FAILED TO UPDATE DB WITH SEREBII DATA")
+
             else:
                 id_ = id_[0]
-            new_usage[key]=id_
 
-        pokemon_insert = "INSERT INTO battles VALUES ({}, '{}', {}, {}); COMMIT;".format(id_, month, sub['Raw count'], sub['usage'])
-        cur.execute(pokemon_insert)
+            self.stats[key]=id_
 
-        for ability, count in sub['Abilities'].items():
-            if ability in new_ability:
-                ability_id = new_ability[ability]
-            else:
-                new_ability_check = "SELECT id FROM abilities WHERE name='{}'".format(ability)
-                cur.execute(new_ability_check)
-                ability_id = cur.fetchone()
+        return id_
 
-                if ability_id == None:
-                    cur.execute("SELECT MAX(id) FROM abilities;")
-                    ability_id = cur.fetchone()[0] + 1
-                    ability_insert = "INSERT INTO abilities VALUES ({}, '{}'); COMMIT;".format(ability_id, ability)
-                    cur.execute(ability_insert)
-                    print ("NEW ABILITY: ", ability_id, ability)
+class sqlWorker():
+    def __init__(self, month):
+        self.month = month
+        self.pw = pw
+        self.c = 0
+        self.usage = PokeData('pokemon', '(id, name)')
+        self.abilities = PokeData('abilities', '') 
+        self.natures = PokeData('natures', '')
+        self.items = PokeData('items', '')
+
+    def _get_data(self):
+        """
+        INPUT: 
+            month: string = YYYY-MM, i.e. 2020-08
+        """
+        url = f'https://www.smogon.com/stats/{self.month}/chaos/gen8ou-0.json'
+        r = requests.get(url)
+        content = json.loads(r.content)
+        self.data = content
+        self.dic = content['data']
+        self.total_pokemon = len(self.dic.keys())
+        self.num_battles = content['info']['number of battles']
+        self.month = self.month[-2:] + '-' + self.month[:4]
+        return
+
+    def _connect_to_db(self):
+        self.conn = psycopg2.connect(self.pw)
+        self.cur = self.conn.cursor()
+        self.conn.rollback()
+        return
+
+    def _upload(self, table_name, v1, v2, v3, v4):
+        sql = "INSERT INTO " + table_name 
+        sql += " VALUES ({}, {}, {}, '{}'); COMMIT;".format(v1, v2, v3, v4)
+        self.cur.execute(sql)
+        return
+
+    def extract_data(self):
+        print ('Fetching Data \n')
+        self._get_data()
+        self._connect_to_db()
+        print ('Connected to DataBase Server \n')
+
+        sql = "INSERT INTO users VALUES ('{}', {}); COMMIT;".format(self.month, self.num_battles)
+        self.cur.execute(sql)
+        for key, sub in self.dic.items():
+            if sub['usage'] < 0.005:
+                continue
+            id_ = self.usage._db_check(key, self.cur)
+            sql = "INSERT INTO battles VALUES ({}, '{}', {}, {}); COMMIT;".format(id_, self.month, sub['Raw count'], sub['usage'])
+            self.cur.execute(sql)
+            
+            for ability, count in sub['Abilities'].items():
+                ability_id = self.abilities._db_check(ability, self.cur)
+                self._upload('battle_abilities', id_, ability_id, count, self.month)
+
+            for item, count in sub['Items'].items():
+                item_id = self.items._db_check(item, self.cur, auto_update=False)
+                self._upload('battle_items', id_, item_id, count, self.month)
+
+            sub_nature_vals = defaultdict(int)
+            for spread, count in sub['Spreads'].items():
+                nature = spread.split(':')[0]
+                sub_nature_vals[nature] += count
+            for nature, count in sub_nature_vals.items():
+                nature_id = self.natures._db_check(nature, self.cur, auto_update=False)
+                self._upload('battle_natures', id_, nature_id, count, self.month)
+
+            for counter, arr in sub['Checks and Counters'].items():
+                if counter in self.dic.keys() and arr[1] > 0.5 and self.dic[counter]['usage'] > 0.005:
+                    counter_id = self.usage._db_check(counter, self.cur)
                 else:
-                    ability_id = ability_id[0]
-                new_ability[ability] = ability_id
-            ability_insert = "INSERT INTO battle_abilities VALUES ({}, {}, {}, '{}'); COMMIT;".format(id_, ability_id, count, month)
-            cur.execute(ability_insert)
-
-        for item, count in sub['Items'].items():
-            if item in new_item:
-                item_id = new_item[item]
-            else:
-                new_item_check = "SELECT id FROM items WHERE name='{}'".format(item)
-                cur.execute(new_item_check)
-                item_id = cur.fetchone()
-
-                if item_id == None:
                     continue
+                sql = "INSERT INTO counters VALUES ({}, {}, {}, {}, '{}'); COMMIT;".format(id_, counter_id, arr[0], arr[1], self.month)
+                self.cur.execute(sql)
+
+            for mate, x in sub['Teammates'].items():
+                if mate in dic.keys() and dic[mate]['usage'] > 0.005:
+                    mate_id = self.usage._db_check(mate, self.cur)
                 else:
-                    item_id = item_id[0]
-                new_item[item] = item_id
-            item_insert = "INSERT INTO battle_items VALUES ({}, {}, {}, '{}'); COMMIT;".format(id_, item_id, count, month)
-            cur.execute(item_insert)
+                    continue
+                self._upload('teammates', id_, mate_id, x, self.month)
 
-        sub_nature_vals = defaultdict(int)
-        for spread, count in sub['Spreads'].items():
+            print (f'{key} data has been updated | {self.c}/{self.total_pokemon} complete')
+            self.c += 1
 
-            nature = spread.split(':')[0]
-            if nature in new_nature:
-                nature_id = new_nature[nature]
-            else:
-                new_nature_check = "SELECT id FROM natures WHERE name='{}'".format(nature)
-                cur.execute(new_nature_check)
-                nature_id = cur.fetchone()[0]
-                new_nature[nature] = nature_id
-            sub_nature_vals[nature] += count
-        
-        for nature, count in sub_nature_vals.items():
-            nature_insert= "INSERT INTO battle_natures VALUES ({}, {}, {}, '{}'); COMMIT;".format(id_, new_nature[nature], count, month)
-            cur.execute(nature_insert)
-
-        for counter, arr in sub['Checks and Counters'].items():
-            if counter in dic.keys() and arr[1] > 0.5 and dic[counter]['usage'] > 0.005:
-                if counter in new_usage:
-                    counter_id = new_usage[counter]
-                else:
-                    name = counter.split("'")[0]
-                    new_counter_check = "SELECT id FROM pokemon WHERE name LIKE '{}%'".format(name)
-                    cur.execute(new_counter_check)
-                    counter_id = cur.fetchone()
-
-                    if counter_id == None:
-                        cur.execute("SELECT MAX(id) FROM pokemon;")
-                        counter_id = cur.fetchone()[0] + 1
-                        pokemon_insert = "INSERT INTO pokemon (id, name) VALUES ({}, '{}'); COMMIT;".format(counter_id, counter)
-                        cur.execute(pokemon_insert)
-                        print ("NEW POKEMON:", counter_id, counter)
-                    else:
-                        counter_id = counter_id[0]
-                    new_usage[counter] = counter_id
-            else:
-                continue
-
-            counter_insert = "INSERT INTO counters VALUES ({}, {}, {}, {}, '{}'); COMMIT;".format(id_, counter_id, arr[0], arr[1], month)
-            cur.execute(counter_insert)
-                
-        for mate, x in sub['Teammates'].items():
-            if mate in dic.keys() and dic[mate]['usage'] > 0.005:
-                if mate in new_usage:
-                    mate_id = new_usage[mate]
-                else:
-                    name = mate.split("'")[0]
-                    new_mate_check = "SELECT id FROM pokemon WHERE name LIKE '{}%'".format(name)
-                    cur.execute(new_mate_check)
-                    mate_id = cur.fetchone()
-
-                    if mate_id == None:
-                        cur.execute("SELECT MAX(id) FROM pokemon;")
-                        mate_id = cur.fetchone()[0] + 1
-                        pokemon_insert = "INSERT INTO pokemon (id, name) VALUES ({}, '{}'); COMMIT;".format(mate_id, mate)
-                        cur.execute(pokemon_insert)
-                        print ("NEW POKEMON: ", mate_id, mate)
-                    else:
-                        mate_id = mate_id[0]
-                    new_usage[mate] = mate_id
-            else:
-                continue
-            mate_insert = "INSERT INTO teammates VALUES ({}, {}, {}, '{}'); COMMIT".format(id_, mate_id, x, month)
-            cur.execute(mate_insert) 
-        #THIS PRINT STATEMENT WILL LIKELY NEVER GO TO '100%' COMPLETE AS WE PASS OVER NEGIBLE POKEMON USAGE
-        print (f'{key} data has been updated | {c}/{total_pokemon} complete')
-        c += 1
-    conn.close()
-
-    return num_battles
+        self.cur.close()
+        self.conn.close()
 
 if __name__ == '__main__':
     with open('src/pw') as pw_file:
         pw = pw_file.readline()
-    num_battles = json_extract('2020-10', pw)
-    print (f'DB HAS BEEN UPDATED FOR THE CURRENT MONTH WITH {num_battles} battles')
+
+    worker = sqlWorker('2020-10', pw)
+    worker.extract_data()
+    print (f'DB HAS BEEN UPDATED FOR THE CURRENT MONTH WITH {worker.num_battles} battles')
