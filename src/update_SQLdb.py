@@ -75,12 +75,18 @@ def new_poke_update(id_, poke):
     return sql
 
 class PokeData():
+    """
+    Provides default functionality to multiple SQL reference tables
+    """
     def __init__(self, table_name, update_str, cur):
-        self.table = table_name
-        self.update_str = update_str
+        self.table = table_name #for sql string concatenation
+        self.update_str = update_str #for sql string concatenation (column values to insert)
         self._get_current_data(cur)
 
     def _get_current_data(self, cur):
+        """
+        Queries reference table and stores as dict (self.stats)
+        """
         sql = "SELECT name, id FROM {};".format(self.table)
         cur.execute(sql)
         data = cur.fetchall()
@@ -88,6 +94,10 @@ class PokeData():
         return
 
     def _db_check(self, key, cur, auto_update=True):
+        """
+        Returns id if key exists, otherwise creates new id and inserts into reference table
+            auto_update prevents undesireable tables from blowing up with unnecessary values
+        """
         if key in self.stats:
             id_ = self.stats[key]
 
@@ -112,7 +122,7 @@ class sqlWorker():
     def __init__(self, month):
         self.month = month
         self.pw = pw
-        self.c = 0
+        self.c = 0 #tracks number of Pokemon updated in self.extract_data()
 
     def _get_data(self):
         """
@@ -136,20 +146,46 @@ class sqlWorker():
         return
 
     def _initialize_current_db_data(self):
+        """
+        Reference table containers
+        """
         self.usage = PokeData('pokemon', '(id, name)', self.cur)
         self.abilities = PokeData('abilities', '', self.cur) 
         self.natures = PokeData('natures', '', self.cur)
         self.items = PokeData('items', '', self.cur)
         return
 
-    def _upload(self, table_name, v1, v2, v3, v4):
-        if v2:
-            sql = "INSERT INTO " + table_name 
-            sql += " VALUES ({}, {}, {}, '{}'); COMMIT;".format(v1, v2, v3, v4)
-            self.cur.execute(sql)
+    def _upload(self, table_name, pid, iid, x):
+        """
+        Default SQL insert formatter for tables [battle_abilities, battle_items, battle_natures, teammates]
+        INPUT
+            table_name = str => for string concatenation and assigning query structure
+            pid = str => Pokemon ID
+            iid = str => 'item' id (nature, ability, item), nothing happens if None (see PokeData._db_check())
+            x = int/float, or array  => statistic/container for statistic for [pid, iid] pair
+        """
+        if not iid: 
+            return
+
+        sql = "INSERT INTO " + table_name
+        if table_name == 'battles':
+            #author's note: Why I didn't structure this table the same as everything else escapes me but here we are
+            sql += " VALUES ({}, '{}', {}, {})".format(pid, self.month, iid, x)
+
+        elif table_name == 'counters':
+            sql +=  " VALUES ({}, {}, {}, {}, '{}')".format(pid, iid, x[0], x[1], self.month)
+
+        else:
+            sql += " VALUES ({}, {}, {}, '{}')".format(pid, iid, x, self.month)
+
+        sql += "; COMMIT;"
+        self.cur.execute(sql) 
         return
 
     def extract_data(self):
+        """
+        Iterates through JSON data file and updates all monthly usage SQL tables
+        """
         print ('Fetching Data \n')
         self._get_data()
         self._connect_to_db()
@@ -158,20 +194,21 @@ class sqlWorker():
 
         sql = "INSERT INTO users VALUES ('{}', {}); COMMIT;".format(self.month, self.num_battles)
         self.cur.execute(sql)
+
+        #sub is a lower-level dictionary containing all usage data for a single Pokemon
         for key, sub in self.dic.items():
             if sub['usage'] < 0.005:
                 continue
             id_ = self.usage._db_check(key, self.cur)
-            sql = "INSERT INTO battles VALUES ({}, '{}', {}, {}); COMMIT;".format(id_, self.month, sub['Raw count'], sub['usage'])
-            self.cur.execute(sql)
+            self._upload('battles', id_, sub['Raw count'], sub['usage'])
             
             for ability, count in sub['Abilities'].items():
                 ability_id = self.abilities._db_check(ability, self.cur)
-                self._upload('battle_abilities', id_, ability_id, count, self.month)
+                self._upload('battle_abilities', id_, ability_id, count)
 
             for item, count in sub['Items'].items():
                 item_id = self.items._db_check(item, self.cur, auto_update=False)
-                self._upload('battle_items', id_, item_id, count, self.month)
+                self._upload('battle_items', id_, item_id, count)
 
             sub_nature_vals = defaultdict(int)
             for spread, count in sub['Spreads'].items():
@@ -179,22 +216,21 @@ class sqlWorker():
                 sub_nature_vals[nature] += count
             for nature, count in sub_nature_vals.items():
                 nature_id = self.natures._db_check(nature, self.cur, auto_update=False)
-                self._upload('battle_natures', id_, nature_id, count, self.month)
+                self._upload('battle_natures', id_, nature_id, count)
 
             for counter, arr in sub['Checks and Counters'].items():
                 if counter in self.dic.keys() and arr[1] > 0.5 and self.dic[counter]['usage'] > 0.005:
                     counter_id = self.usage._db_check(counter, self.cur)
                 else:
                     continue
-                sql = "INSERT INTO counters VALUES ({}, {}, {}, {}, '{}'); COMMIT;".format(id_, counter_id, arr[0], arr[1], self.month)
-                self.cur.execute(sql)
+                self._upload('counters', id_, counter_id, arr)
 
             for mate, x in sub['Teammates'].items():
                 if mate in dic.keys() and dic[mate]['usage'] > 0.005:
                     mate_id = self.usage._db_check(mate, self.cur)
                 else:
                     continue
-                self._upload('teammates', id_, mate_id, x, self.month)
+                self._upload('teammates', id_, mate_id, x)
 
             print (f'{key} data has been updated | {self.c}/{self.total_pokemon} complete')
             self.c += 1
