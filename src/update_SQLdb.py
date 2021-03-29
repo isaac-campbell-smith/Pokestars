@@ -6,8 +6,6 @@ import json
 import pandas as pd
 import psycopg2
 
-from json_clean_to_csv import *
-
 def get_data(month):
     """
     INPUT: 
@@ -26,11 +24,14 @@ def new_poke_update(id_, poke):
     base_url = 'https://serebii.net/pokedex-swsh/'
     
     sql = "UPDATE pokemon SET (type_1, type_2, attack, defense, sp_attack, sp_defense, speed) "
-
+    
+    cols = ['type_1', 'type_2', 'hp', 'attack', 'defense', 'sp_attack', 'sp_defense', 'speed']
     try:
         url = base_url + poke.lower().split('-')[0] + '/'
+
         r = requests.get(url)
-        soup = BeautifulSoup(r.content, 'html')
+        soup = BeautifulSoup(r.content, 'lxml')
+
         dextable = soup.find_all('table', {'class':'dextable'})
         
         #Checks whether this is a base forme
@@ -61,14 +62,16 @@ def new_poke_update(id_, poke):
         
         #EXTRACT STATS TOTALS (NOTICE STAT_IDX)
         base_stats = [t.text for t in dextable if 'Base Stats - Total' in t.text]
-        hp, at, df, spa, spd, spe = [int(stat) for stat in base_stats[stat_idx].split('Base Stats - Total: ')[1].split('\n')[1:7]]
+        #hp, at, df, spa, spd, spe = [int(stat) for stat in base_stats[stat_idx].split('Base Stats - Total: ')[1].split('\n')[1:7]]
+        stat_list = [int(stat) for stat in base_stats[stat_idx].split('Base Stats - Total: ')[1].split('\n')[1:7]]
+        complete_stats = types + stat_list
 
         #COMPLETE SQL STRING
-        sql += "VALUES ('{}', '{}', ".format(types[0], types[1])
-        sql +=  "{}, {}, {}, {}, {}, {}) WHERE id = {}; COMMIT;".format(hp, at, df, spa, spd, spe, id_)
+        formatted_stats = ', '.join([f"{col}={val}" if type(val) != str else f"{col}='{val}'" for col, val in zip(cols, complete_stats)])
+        sql = f'UPDATE pokemon SET {formatted_stats} WHERE id = {id_}; COMMIT;'
 
         print (types)
-        print (hp, at, df, spa, spd, spe)
+        print (stat_list)
     except:
         print ("FAILED TO COLLECT SEREBII DATA!!")
         sql = None
@@ -78,10 +81,11 @@ class PokeData():
     """
     Provides default functionality to multiple SQL reference tables
     """
-    def __init__(self, table_name, update_str, cur):
+    def __init__(self, table_name, cur, update_str='', auto_update=True):
         self.table = table_name #for sql string concatenation
         self.update_str = update_str #for sql string concatenation (column values to insert)
         self._get_current_data(cur)
+        self.auto_update = auto_update
 
     def _get_current_data(self, cur):
         """
@@ -93,7 +97,7 @@ class PokeData():
         self.stats = dict(data)
         return
 
-    def _db_check(self, key, cur, auto_update=True):
+    def _db_check(self, key, cur):
         """
         Returns id if key exists, otherwise creates new id and inserts into reference table
             auto_update prevents undesireable tables from blowing up with unnecessary values
@@ -101,7 +105,7 @@ class PokeData():
         if key in self.stats:
             id_ = self.stats[key]
 
-        elif auto_update:
+        elif self.auto_update:
             id_ = max(self.stats.values()) + 1   
             sql = "INSERT INTO {} {} VALUES ({}, '{}'); COMMIT;".format(self.table, self.update_str, id_, key)
             cur.execute(sql)
@@ -111,6 +115,7 @@ class PokeData():
             if self.table == 'pokemon':
                 update_str = new_poke_update(id_, key)
                 if update_str:
+                    print (update_str)
                     cur.execute(update_str)     
 
         else:
@@ -119,7 +124,7 @@ class PokeData():
         return id_
 
 class sqlWorker():
-    def __init__(self, month):
+    def __init__(self, month, pw):
         self.month = month
         self.pw = pw
         self.c = 0 #tracks number of Pokemon updated in self.extract_data()
@@ -149,10 +154,10 @@ class sqlWorker():
         """
         Reference table containers
         """
-        self.usage = PokeData('pokemon', '(id, name)', self.cur)
-        self.abilities = PokeData('abilities', '', self.cur) 
-        self.natures = PokeData('natures', '', self.cur)
-        self.items = PokeData('items', '', self.cur)
+        self.usage = PokeData('pokemon', self.cur, '(id, name)')
+        self.abilities = PokeData('abilities', self.cur) 
+        self.natures = PokeData('natures', self.cur, auto_update=False)
+        self.items = PokeData('items', self.cur, auto_update=False)
         return
 
     def _upload(self, table_name, pid, iid, x):
@@ -201,13 +206,13 @@ class sqlWorker():
                 continue
             id_ = self.usage._db_check(key, self.cur)
             self._upload('battles', id_, sub['Raw count'], sub['usage'])
-            
+
             for ability, count in sub['Abilities'].items():
                 ability_id = self.abilities._db_check(ability, self.cur)
                 self._upload('battle_abilities', id_, ability_id, count)
 
             for item, count in sub['Items'].items():
-                item_id = self.items._db_check(item, self.cur, auto_update=False)
+                item_id = self.items._db_check(item, self.cur)
                 self._upload('battle_items', id_, item_id, count)
 
             sub_nature_vals = defaultdict(int)
@@ -215,7 +220,7 @@ class sqlWorker():
                 nature = spread.split(':')[0]
                 sub_nature_vals[nature] += count
             for nature, count in sub_nature_vals.items():
-                nature_id = self.natures._db_check(nature, self.cur, auto_update=False)
+                nature_id = self.natures._db_check(nature, self.cur)
                 self._upload('battle_natures', id_, nature_id, count)
 
             for counter, arr in sub['Checks and Counters'].items():
@@ -226,7 +231,7 @@ class sqlWorker():
                 self._upload('counters', id_, counter_id, arr)
 
             for mate, x in sub['Teammates'].items():
-                if mate in dic.keys() and dic[mate]['usage'] > 0.005:
+                if mate in self.dic.keys() and self.dic[mate]['usage'] > 0.005:
                     mate_id = self.usage._db_check(mate, self.cur)
                 else:
                     continue
@@ -242,6 +247,6 @@ if __name__ == '__main__':
     with open('src/pw') as pw_file:
         pw = pw_file.readline()
 
-    worker = sqlWorker('2020-10', pw)
+    worker = sqlWorker('2020-11', pw)
     worker.extract_data()
     print (f'DB HAS BEEN UPDATED FOR THE CURRENT MONTH WITH {worker.num_battles} battles')
